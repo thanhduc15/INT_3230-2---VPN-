@@ -1,1 +1,79 @@
-# INT_3230-2---VPN-
+# Lõi VPN Java
+
+Phần phụ trách của **Mai Thành Đức**. Mô-đun thiết lập đường hầm TLS, kiểm tra danh tính máy chủ, phân khung gói IPv4 và chuyển gói hai chiều. Client và Server dùng chung mô-đun này. Mã dùng JDK 17 trở lên và chỉ cần thư viện chuẩn Java.
+
+## Kiểm thử lõi
+
+Chạy trong thư mục dự án bằng Bash trên Linux hoặc Git Bash trên Windows. Cần có `java`, `javac` và `keytool` trên PATH.
+
+```bash
+bash scripts/smoke-test.sh
+```
+
+Script tạo chứng chỉ riêng cho mỗi lần chạy và dựng kết nối TCP qua loopback. Hai thiết bị giả lập trong bộ nhớ thay cho TUN. Kiểm thử đối chiếu từng byte của các gói truyền theo hai chiều, kiểm tra phiên tự đóng khi một đầu kết thúc, thử chứng chỉ không đáng tin cậy và sai danh tính, rồi kiểm tra khung quá lớn, bị cắt hoặc có header IP sai. Thư mục `build/` chứa các tệp sinh ra trong quá trình kiểm thử.
+
+## Thỏa thuận giữa Client và Server
+
+| Mục | Giá trị |
+| --- | --- |
+| Kênh truyền | TCP, TLS 1.3, ALPN `java-vpn/1` |
+| Định dạng khung bên trong TLS | `[độ dài: 2 byte, unsigned, big-endian][gói IPv4: đúng số byte đã khai báo]` |
+| Kích thước gói IPv4 | 20–1400 byte. Dùng `TlsTunnel.MTU` để cấu hình TUN. |
+| Kiểm tra đầu nhận | Độ dài nằm trong giới hạn, version là IPv4, IHL hợp lệ và trường Total Length bằng độ dài khung |
+| Chấm dứt phiên | EOF ở ranh giới khung kết thúc phiên. EOF giữa khung hoặc khung sai gây lỗi và đóng phiên qua `TunnelBridge`. |
+
+TLS cung cấp luồng byte nên một lần đọc có thể lấy một phần gói hoặc dữ liệu thuộc nhiều gói. Trường độ dài giúp đọc đúng một gói mỗi lần. TLS xác thực máy chủ và bảo vệ dữ liệu trên đường truyền. Cơ chế kiểm tra tên của JSSE dùng thuật toán nhận diện đầu cuối `HTTPS` để đối chiếu tên DNS hoặc IP với chứng chỉ, dù đường hầm không chạy HTTP. [Tài liệu Java về SSLParameters](https://docs.oracle.com/en/java/javase/17/docs/api/java.base/javax/net/ssl/SSLParameters.html)
+
+## Tích hợp với TUN
+
+Mỗi đầu triển khai `vpn.core.PacketDevice` cho thiết bị Linux TUN của mình. Cấu hình `IFF_TUN | IFF_NO_PI` để đọc trực tiếp gói IP, không kèm header PI 4 byte của TUN. Đặt MTU hai đầu là 1400. Với demo IPv4, chỉ đưa gói IPv4 vào mô-đun. Tách địa chỉ mạng thật dùng để nối TLS khỏi địa chỉ IP ảo trong VPN.
+
+- `readPacket()` đọc đúng một gói, trả mảng byte đúng độ dài thực tế hoặc `null` khi thiết bị kết thúc.
+- `writePacket(packet)` ghi cả gói trong một thao tác ghi vào TUN.
+- Adapter cho phép đọc và ghi đồng thời. `close()` cần đánh thức thao tác đang chờ, kể cả khi TUN không có gói. Hai bạn phụ trách TUN nên kiểm tra yêu cầu này trên Linux, chẳng hạn dùng cơ chế poll có đường báo dừng trong lớp native.
+- `TunnelBridge.run(tunnel, device)` chặn đến khi phiên kết thúc, sau đó đóng cả tunnel và device. Tạo device mới cho phiên kế tiếp nếu bổ sung kết nối lại.
+
+Phía Client, truyền địa chỉ mạng thật của máy chủ. Chứng chỉ phải chứa SAN khớp địa chỉ này.
+
+```java
+var context = TlsEndpoints.clientContext(Path.of("certs/trusted.p12"), password);
+try (var tunnel = TlsEndpoints.connect(context, serverHost, 8443)) {
+    System.out.println(tunnel.protocol() + " " + tunnel.cipherSuite());
+    TunnelBridge.run(tunnel, clientTun);
+}
+```
+
+Phía Server, đặt địa chỉ lắng nghe là IP mạng lab của máy chủ.
+
+```java
+var context = TlsEndpoints.serverContext(Path.of("certs/server.p12"), password);
+try (var listener = TlsEndpoints.listen(context, new InetSocketAddress(labIp, 8443));
+     var tunnel = listener.accept()) {
+    TunnelBridge.run(tunnel, serverTun);
+}
+```
+
+Các đoạn tích hợp dùng `java.nio.file.Path`, `java.net.InetSocketAddress` và các lớp trong `vpn.core`. Biến `password` có kiểu `char[]`. Client chỉ cần truststore. Keystore chứa khóa riêng chỉ đặt ở Server. Adapter phải được đóng nếu kết nối thất bại trước khi bàn giao thiết bị cho bridge.
+
+## Tạo chứng chỉ cho demo trên hai máy
+
+Ví dụ VPN Server có IP mạng thật `192.168.56.10`. Thay giá trị SAN bằng IP thật của Server trong lab, rồi dùng chính IP đó khi gọi `connect`. `keytool` sẽ hỏi mật khẩu cho mỗi kho.
+
+```bash
+mkdir -p certs
+keytool -genkeypair -alias vpn-server -keyalg EC -groupname secp256r1 \
+  -dname "CN=VPN Lab" -ext "SAN=ip:192.168.56.10" -validity 30 \
+  -storetype PKCS12 -keystore certs/server.p12
+keytool -exportcert -alias vpn-server -keystore certs/server.p12 \
+  -file certs/server.cer
+keytool -importcert -alias vpn-server -file certs/server.cer \
+  -storetype PKCS12 -keystore certs/trusted.p12
+```
+
+Chép `trusted.p12` sang Client qua kênh của nhóm sau khi xác nhận chứng chỉ đúng. Server giữ `server.p12`. Cấu hình này xác thực máy chủ, còn máy khách chưa có danh tính được server xác thực. Dùng mạng lab riêng cho bản demo.
+
+## Phần trình bày của Đức
+
+- **Kiến trúc:** TUN phía Client → phân khung IPv4 → TLS/TCP → giải khung → TUN phía Server. Chiều về chạy đồng thời.
+- **Bảo mật:** Trình bày vai trò của keystore, truststore và SAN. Dùng log để chỉ ra TLS 1.3 và bộ mã được thương lượng trong phiên.
+- **Demo sau khi ghép TUN:** Truy cập dịch vụ web qua IP ảo của máy chủ. So sánh gói trên TUN với lưu lượng cổng 8443 trên mạng thật. Đổi sang truststore chứa chứng chỉ khác và chạy lại để minh họa kết nối bị từ chối.
