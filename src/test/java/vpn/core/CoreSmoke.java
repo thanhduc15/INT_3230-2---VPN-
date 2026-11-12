@@ -16,6 +16,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSocket;
 
 public final class CoreSmoke {
     private static final char[] PASSWORD = "demo-only".toCharArray();
@@ -31,6 +34,7 @@ public final class CoreSmoke {
         try (var listener = TlsEndpoints.listen(server, new InetSocketAddress("127.0.0.1", 0))) {
             checkRejection(tasks, listener, untrusted, "127.0.0.1", "untrusted certificate");
             checkRejection(tasks, listener, trusted, "localhost", "certificate name mismatch");
+            checkMissingApplicationProtocol(tasks, listener, trusted);
             checkBridge(tasks, listener, trusted);
             checkInvalidFrame(new byte[]{5, 121}, ProtocolException.class);
             checkInvalidFrame(new byte[]{0}, EOFException.class);
@@ -64,6 +68,34 @@ public final class CoreSmoke {
             System.out.println("PASS: rejected " + reason);
         }
         accept.get(10, TimeUnit.SECONDS);
+    }
+
+    private static void checkMissingApplicationProtocol(ExecutorService tasks,
+            TlsEndpoints.Listener listener, SSLContext context) throws Exception {
+        Future<?> accept = tasks.submit(() -> {
+            try (TlsTunnel ignored = listener.accept()) {
+                throw new AssertionError("Accepted a client without VPN ALPN");
+            } catch (SSLHandshakeException expected) {
+                if (!"Expected ALPN protocol java-vpn/1".equals(expected.getMessage())) {
+                    throw expected;
+                }
+            }
+            return null;
+        });
+        try (SSLSocket client = (SSLSocket) context.getSocketFactory()
+                .createSocket("127.0.0.1", listener.port())) {
+            SSLParameters parameters = client.getSSLParameters();
+            parameters.setProtocols(new String[]{"TLSv1.3"});
+            parameters.setEndpointIdentificationAlgorithm("HTTPS");
+            parameters.setApplicationProtocols(new String[0]);
+            client.setSSLParameters(parameters);
+            client.setSoTimeout(5_000);
+            client.startHandshake();
+        } catch (SSLException expected) {
+            // The server can reject ALPN before the client completes TLS locally.
+        }
+        accept.get(10, TimeUnit.SECONDS);
+        System.out.println("PASS: rejected client without VPN ALPN");
     }
 
     private static void checkBridge(ExecutorService tasks, TlsEndpoints.Listener listener,
