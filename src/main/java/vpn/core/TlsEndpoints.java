@@ -44,6 +44,20 @@ public final class TlsEndpoints {
         return context;
     }
 
+    /** Creates an identity and an explicit trust policy for either end of mutual TLS. */
+    public static SSLContext mutualContext(Path keyStore, char[] keyPassword,
+            Path trustStore, char[] trustPassword) throws IOException, GeneralSecurityException {
+        KeyManagerFactory keys = KeyManagerFactory.getInstance(
+                KeyManagerFactory.getDefaultAlgorithm());
+        keys.init(loadStore(keyStore, keyPassword), keyPassword);
+        TrustManagerFactory trust = TrustManagerFactory.getInstance(
+                TrustManagerFactory.getDefaultAlgorithm());
+        trust.init(loadStore(trustStore, trustPassword));
+        SSLContext context = SSLContext.getInstance("TLSv1.3");
+        context.init(keys.getKeyManagers(), trust.getTrustManagers(), null);
+        return context;
+    }
+
     public static TlsTunnel connect(SSLContext context, String host, int port) throws IOException {
         Socket tcp = new Socket();
         try {
@@ -64,8 +78,15 @@ public final class TlsEndpoints {
     }
 
     public static Listener listen(SSLContext context, InetSocketAddress bind) throws IOException {
+        return listen(context, bind, false);
+    }
+
+    /** When required, the context must trust the permitted client certificates. */
+    public static Listener listen(SSLContext context, InetSocketAddress bind,
+            boolean requireClientCertificate) throws IOException {
         SSLServerSocket server = (SSLServerSocket) context.getServerSocketFactory().createServerSocket();
         try {
+            server.setNeedClientAuth(requireClientCertificate);
             server.bind(bind);
             return new Listener(server);
         } catch (IOException | RuntimeException failure) {

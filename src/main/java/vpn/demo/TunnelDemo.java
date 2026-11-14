@@ -13,8 +13,8 @@ public final class TunnelDemo {
     private TunnelDemo() {}
 
     public static void main(String[] args) {
-        if (args.length != 4 || (!args[0].equals("server") && !args[0].equals("client"))) {
-            System.err.println("Usage: TunnelDemo server|client host port store.p12");
+        if ((args.length != 4 && args.length != 5) || (!args[0].equals("server") && !args[0].equals("client"))) {
+            System.err.println("Usage: TunnelDemo server|client host port store.p12 [peer-store.p12]");
             System.exit(2);
         }
         try {
@@ -30,10 +30,11 @@ public final class TunnelDemo {
             char[] password = value.toCharArray();
             try {
                 Path store = Path.of(args[3]);
+                Path peerStore = args.length == 5 ? Path.of(args[4]) : null;
                 if (args[0].equals("server")) {
-                    runServer(args[1], port, store, password);
+                    runServer(args[1], port, store, password, peerStore);
                 } else {
-                    runClient(args[1], port, store, password);
+                    runClient(args[1], port, store, password, peerStore);
                 }
             } finally {
                 Arrays.fill(password, '\0');
@@ -45,10 +46,13 @@ public final class TunnelDemo {
         }
     }
 
-    private static void runServer(String host, int port, Path store, char[] password)
-            throws Exception {
-        var context = TlsEndpoints.serverContext(store, password);
-        try (var listener = TlsEndpoints.listen(context, new InetSocketAddress(host, port))) {
+    private static void runServer(String host, int port, Path store, char[] password,
+            Path trustedClients) throws Exception {
+        var context = trustedClients == null
+                ? TlsEndpoints.serverContext(store, password)
+                : TlsEndpoints.mutualContext(store, password, trustedClients, password);
+        try (var listener = TlsEndpoints.listen(context, new InetSocketAddress(host, port),
+                trustedClients != null)) {
             System.out.println("READY port=" + listener.port());
             try (var tunnel = listener.accept()) {
                 tunnel.setReadTimeout(10_000);
@@ -65,9 +69,11 @@ public final class TunnelDemo {
         }
     }
 
-    private static void runClient(String host, int port, Path store, char[] password)
-            throws Exception {
-        var context = TlsEndpoints.clientContext(store, password);
+    private static void runClient(String host, int port, Path store, char[] password,
+            Path clientIdentity) throws Exception {
+        var context = clientIdentity == null
+                ? TlsEndpoints.clientContext(store, password)
+                : TlsEndpoints.mutualContext(clientIdentity, password, store, password);
         try (var tunnel = TlsEndpoints.connect(context, host, port)) {
             tunnel.setReadTimeout(5_000);
             System.out.println("TLS " + tunnel.protocol() + " " + tunnel.cipherSuite());
