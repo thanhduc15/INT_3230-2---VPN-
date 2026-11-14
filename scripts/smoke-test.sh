@@ -6,7 +6,7 @@ mkdir -p build
 test_dir=$(mktemp -d build/smoke.XXXXXX)
 mkdir -p "$test_dir/classes"
 
-for alias in server other; do
+for alias in server other client; do
   keytool -genkeypair -alias "$alias" -keyalg EC -groupname secp256r1 \
     -dname "CN=java-vpn-smoke" -ext SAN=ip:127.0.0.1 -validity 7 \
     -storetype PKCS12 -keystore "$test_dir/$alias.p12" -storepass demo-only
@@ -19,7 +19,11 @@ keytool -importcert -noprompt -alias server -file "$test_dir/server.cer" \
 keytool -importcert -noprompt -alias other -file "$test_dir/other.cer" \
   -storetype PKCS12 -keystore "$test_dir/untrusted.p12" -storepass demo-only
 
+keytool -importcert -noprompt -alias client -file "$test_dir/client.cer" \
+  -storetype PKCS12 -keystore "$test_dir/clients.p12" -storepass demo-only
+
 mapfile -d '' sources < <(find src/main/java src/test/java -name '*.java' -print0)
 javac --release 17 -d "$test_dir/classes" "${sources[@]}"
 java -cp "$test_dir/classes" vpn.core.CoreSmoke "$test_dir"
 java -cp "$test_dir/classes" vpn.core.PacketFramesTest
+java -cp "$test_dir/classes" vpn.core.MutualTlsTest "$test_dir"
