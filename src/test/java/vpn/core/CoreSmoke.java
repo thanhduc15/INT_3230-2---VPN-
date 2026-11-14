@@ -36,6 +36,7 @@ public final class CoreSmoke {
             checkRejection(tasks, listener, untrusted, "127.0.0.1", "untrusted certificate");
             checkRejection(tasks, listener, trusted, "localhost", "certificate name mismatch");
             checkMissingApplicationProtocol(tasks, listener, trusted);
+            checkWrongApplicationProtocol(tasks, listener, trusted);
             checkReadTimeout(tasks, listener, trusted);
             checkBridge(tasks, listener, trusted);
             checkInvalidFrame(new byte[]{5, 121}, ProtocolException.class);
@@ -98,6 +99,35 @@ public final class CoreSmoke {
         }
         accept.get(10, TimeUnit.SECONDS);
         System.out.println("PASS: rejected client without VPN ALPN");
+    }
+
+    private static void checkWrongApplicationProtocol(ExecutorService tasks,
+            TlsEndpoints.Listener listener, SSLContext context) throws Exception {
+        Future<?> accept = tasks.submit(() -> {
+            try (TlsTunnel ignored = listener.accept()) {
+                throw new AssertionError("Server accepted unsupported VPN ALPN");
+            } catch (SSLHandshakeException expected) {
+                // No common application protocol must fail during the handshake.
+            }
+            return null;
+        });
+        try (SSLSocket client = (SSLSocket) context.getSocketFactory()
+                .createSocket("127.0.0.1", listener.port())) {
+            SSLParameters parameters = client.getSSLParameters();
+            parameters.setProtocols(new String[]{"TLSv1.3"});
+            parameters.setEndpointIdentificationAlgorithm("HTTPS");
+            parameters.setApplicationProtocols(new String[]{"java-vpn/2"});
+            client.setSSLParameters(parameters);
+            client.setSoTimeout(5_000);
+            try {
+                client.startHandshake();
+                throw new AssertionError("Client negotiated an unsupported VPN protocol");
+            } catch (SSLHandshakeException expected) {
+                // Both endpoints must reject the protocol mismatch.
+            }
+        }
+        accept.get(10, TimeUnit.SECONDS);
+        System.out.println("PASS: rejected unsupported VPN ALPN version");
     }
 
     private static void checkReadTimeout(ExecutorService tasks, TlsEndpoints.Listener listener,
