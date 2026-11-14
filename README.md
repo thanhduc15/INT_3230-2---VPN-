@@ -2,6 +2,12 @@
 
 Phần phụ trách của **Mai Thành Đức**. Mô-đun thiết lập đường hầm TLS, kiểm tra danh tính máy chủ, phân khung gói IPv4 và chuyển gói hai chiều. Client và Server dùng chung mô-đun này. Mã dùng JDK 17 trở lên và chỉ cần thư viện chuẩn Java.
 
+## Chạy demo mTLS bằng một lệnh
+
+Từ thư mục gốc, chạy `bash scripts/run-demo.sh` trên Linux hoặc Git Bash với JDK 17 trở lên. Script tạo chứng chỉ lab, biên dịch Java và kiểm tra hai phiên liên tiếp. Client hợp lệ nhận lại đủ ba gói, còn Client thiếu chứng chỉ bị từ chối. Mỗi lần chạy tạo một thư mục log riêng trong `build/`.
+
+[Kịch bản trình diễn và cách đọc log](docs/demo-mtls.md)
+
 ## Kiểm thử lõi
 
 Chạy trong thư mục dự án bằng Bash trên Linux hoặc Git Bash trên Windows. Cần có `java`, `javac` và `keytool` trên PATH.
