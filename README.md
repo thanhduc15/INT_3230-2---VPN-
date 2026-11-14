@@ -77,3 +77,41 @@ Chép `trusted.p12` sang Client qua kênh của nhóm sau khi xác nhận chứn
 - **Kiến trúc:** TUN phía Client → phân khung IPv4 → TLS/TCP → giải khung → TUN phía Server. Chiều về chạy đồng thời.
 - **Bảo mật:** Trình bày vai trò của keystore, truststore và SAN. Dùng log để chỉ ra TLS 1.3 và bộ mã được thương lượng trong phiên.
 - **Demo sau khi ghép TUN:** Truy cập dịch vụ web qua IP ảo của máy chủ. So sánh gói trên TUN với lưu lượng cổng 8443 trên mạng thật. Đổi sang truststore chứa chứng chỉ khác và chạy lại để minh họa kết nối bị từ chối.
+
+## Chạy demo đường hầm ở hai tiến trình
+
+Demo này tạo các gói IPv4 mẫu, gửi qua TLS và nhận lại nguyên gói do Server phản hồi. Kết quả cho biết đường hầm hoạt động và các byte được giữ nguyên. Demo ping và truy cập web qua IP ảo nằm ở bước ghép TUN trên Linux.
+
+Chạy các lệnh từ thư mục gốc repo. Chuẩn bị JDK 17 trở lên, Bash và hai kho chứng chỉ theo mục tạo chứng chỉ ở trên. Với demo cùng máy, dùng SAN là `ip:127.0.0.1` khi tạo chứng chỉ. Khi chạy trên hai máy, SAN chứa IP mạng thật của Server và Client kết nối bằng IP đó.
+
+Biên dịch các lớp chính.
+
+```bash
+bash scripts/build.sh
+```
+
+Mở terminal thứ nhất, đặt mật khẩu keystore và khởi động Server. Thay giá trị mật khẩu minh họa bằng mật khẩu đã dùng khi tạo kho. Server in `READY port=8443` sau khi lắng nghe thành công.
+
+```bash
+export VPN_STORE_PASSWORD='mat-khau-keystore'
+java -cp build/classes vpn.demo.TunnelDemo server 127.0.0.1 8443 certs/server.p12
+```
+
+Mở terminal thứ hai, đặt mật khẩu truststore và chạy Client.
+
+```bash
+export VPN_STORE_PASSWORD='mat-khau-truststore'
+java -cp build/classes vpn.demo.TunnelDemo client 127.0.0.1 8443 certs/trusted.p12
+```
+
+Trong PowerShell, dùng `$env:VPN_STORE_PASSWORD = 'mat-khau-cua-kho'` để đặt biến môi trường, rồi chạy cùng lệnh `java`. Chạy bước build bằng Git Bash.
+
+Client in phiên bản TLS, bộ mã và ba dòng `PASS packet=...`. Server in ba dòng `ECHO`, sau đó `DONE packets=3` và kết thúc. Mỗi lần thử lại cần khởi động lại Server. Với hai máy, thay `127.0.0.1` trong cả hai lệnh bằng IP thật của Server.
+
+Client chờ tối đa 5 giây cho mỗi thao tác đọc socket. Server chờ tối đa 10 giây khi đọc sau bắt tay TLS. Nếu hết thời gian chờ, demo đóng phiên và trả mã lỗi 1. Khi một phần khung đã được đọc, chương trình gọi thư viện cần đóng phiên sau lỗi timeout để tránh lệch ranh giới khung.
+
+## Kiểm thử bổ sung
+
+Lệnh `bash scripts/smoke-test.sh` chạy cả `CoreSmoke` và `PacketFramesTest`. Các tình huống mới gồm đọc từ peer im lặng với timeout, đọc gói từ luồng chỉ trả một byte mỗi lần, nhiều khung nối tiếp, header IPv4 có options, giới hạn MTU, độ dài và header sai. Bài kiểm tra bên gửi xác nhận gói sai bị từ chối trước khi ghi byte nào vào luồng.
+
+Để kiểm tra chứng chỉ thủ công, dùng truststore chứa chứng chỉ khác rồi chạy lại Client. Với chứng chỉ chỉ có SAN `ip:127.0.0.1`, kết nối bằng `localhost` sẽ thử tình huống sai danh tính. Client phải báo lỗi và kết thúc với mã 1. Quan sát cổng TCP 8443 trên Wireshark để xem phiên TLS khi trình diễn.
