@@ -6,6 +6,7 @@ import java.io.Closeable;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.SocketException;
 import javax.net.ssl.SSLSocket;
 
 /** An authenticated transport for IPv4 packets. Supports one reader and one writer. */
@@ -28,6 +29,14 @@ public final class TlsTunnel implements Closeable {
 
     public String cipherSuite() {
         return socket.getSession().getCipherSuite();
+    }
+
+    /**
+     * Sets the timeout for socket reads in milliseconds. Zero allows unlimited waiting.
+     * After a receive timeout, close the session because a frame may be partly consumed.
+     */
+    public void setReadTimeout(int milliseconds) throws SocketException {
+        socket.setSoTimeout(milliseconds);
     }
 
     public void send(byte[] packet) throws IOException {
