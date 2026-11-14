@@ -37,6 +37,7 @@ run_case() {
     sleep 0.1
   done
   if [[ -z $port ]]; then cat "$server_log" >&2; return 1; fi
+  printf 'Wireshark (%s): ip.addr == 127.0.0.1 && tcp.port == %s\n' "$mode" "$port"
   "${demo[@]}" client 127.0.0.1 "$port" "$certs/trust-server.p12" "${identity[@]}" >"$client_log" 2>&1 || client_status=$?
   # A client that exits before connecting leaves the one-shot listener waiting.
   for ((i=0; i<100; i++)); do
