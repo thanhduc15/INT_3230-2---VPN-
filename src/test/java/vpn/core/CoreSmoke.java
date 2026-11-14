@@ -6,6 +6,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ProtocolException;
+import java.net.SocketTimeoutException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.concurrent.BlockingQueue;
@@ -35,6 +36,7 @@ public final class CoreSmoke {
             checkRejection(tasks, listener, untrusted, "127.0.0.1", "untrusted certificate");
             checkRejection(tasks, listener, trusted, "localhost", "certificate name mismatch");
             checkMissingApplicationProtocol(tasks, listener, trusted);
+            checkReadTimeout(tasks, listener, trusted);
             checkBridge(tasks, listener, trusted);
             checkInvalidFrame(new byte[]{5, 121}, ProtocolException.class);
             checkInvalidFrame(new byte[]{0}, EOFException.class);
@@ -96,6 +98,21 @@ public final class CoreSmoke {
         }
         accept.get(10, TimeUnit.SECONDS);
         System.out.println("PASS: rejected client without VPN ALPN");
+    }
+
+    private static void checkReadTimeout(ExecutorService tasks, TlsEndpoints.Listener listener,
+            SSLContext context) throws Exception {
+        Future<TlsTunnel> accepted = tasks.submit(listener::accept);
+        try (TlsTunnel client = TlsEndpoints.connect(context, "127.0.0.1", listener.port());
+                TlsTunnel server = accepted.get(10, TimeUnit.SECONDS)) {
+            client.setReadTimeout(200);
+            try {
+                client.receive();
+                throw new AssertionError("Silent peer did not trigger a read timeout");
+            } catch (SocketTimeoutException expected) {
+                System.out.println("PASS: idle tunnel read timeout");
+            }
+        }
     }
 
     private static void checkBridge(ExecutorService tasks, TlsEndpoints.Listener listener,

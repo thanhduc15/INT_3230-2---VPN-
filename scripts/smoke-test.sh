@@ -22,3 +22,4 @@ keytool -importcert -noprompt -alias other -file "$test_dir/other.cer" \
 mapfile -d '' sources < <(find src/main/java src/test/java -name '*.java' -print0)
 javac --release 17 -d "$test_dir/classes" "${sources[@]}"
 java -cp "$test_dir/classes" vpn.core.CoreSmoke "$test_dir"
+java -cp "$test_dir/classes" vpn.core.PacketFramesTest
