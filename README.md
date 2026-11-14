@@ -53,7 +53,7 @@ try (var listener = TlsEndpoints.listen(context, new InetSocketAddress(labIp, 84
 }
 ```
 
-Các đoạn tích hợp dùng `java.nio.file.Path`, `java.net.InetSocketAddress` và các lớp trong `vpn.core`. Biến `password` có kiểu `char[]`. Client chỉ cần truststore. Keystore chứa khóa riêng chỉ đặt ở Server. Adapter phải được đóng nếu kết nối thất bại trước khi bàn giao thiết bị cho bridge.
+Các đoạn tích hợp dùng `java.nio.file.Path`, `java.net.InetSocketAddress` và các lớp trong `vpn.core`. Biến `password` có kiểu `char[]`. Với cách kết nối mặc định, Client dùng truststore và Server giữ keystore chứa khóa riêng. Chế độ mTLS bên dưới bổ sung keystore riêng cho Client. Adapter phải được đóng nếu kết nối thất bại trước khi bàn giao thiết bị cho bridge.
 
 ## Tạo chứng chỉ cho demo trên hai máy
 
@@ -115,3 +115,58 @@ Client chờ tối đa 5 giây cho mỗi thao tác đọc socket. Server chờ t
 Lệnh `bash scripts/smoke-test.sh` chạy cả `CoreSmoke` và `PacketFramesTest`. Các tình huống mới gồm đọc từ peer im lặng với timeout, đọc gói từ luồng chỉ trả một byte mỗi lần, nhiều khung nối tiếp, header IPv4 có options, giới hạn MTU, độ dài và header sai. Bài kiểm tra bên gửi xác nhận gói sai bị từ chối trước khi ghi byte nào vào luồng.
 
 Để kiểm tra chứng chỉ thủ công, dùng truststore chứa chứng chỉ khác rồi chạy lại Client. Với chứng chỉ chỉ có SAN `ip:127.0.0.1`, kết nối bằng `localhost` sẽ thử tình huống sai danh tính. Client phải báo lỗi và kết thúc với mã 1. Quan sát cổng TCP 8443 trên Wireshark để xem phiên TLS khi trình diễn.
+
+## Xác thực hai chiều bằng chứng chỉ
+
+Khi bật mTLS, Server yêu cầu Client trình chứng chỉ và kiểm tra chứng chỉ đó bằng kho tin cậy của Server. Client tiếp tục kiểm tra chứng chỉ và SAN của Server như trước.
+
+| Đầu kết nối | Kho khóa riêng | Kho chứng chỉ tin cậy |
+| --- | --- | --- |
+| Server | `server.p12` | `clients.p12` chứa chứng chỉ Client được phép kết nối |
+| Client | `client.p12` | `trusted.p12` chứa chứng chỉ Server |
+
+Trong lab này, mỗi truststore nhập trực tiếp chứng chỉ tự ký đã được nhóm xác nhận. Các file chứa khóa riêng được giữ ở máy sở hữu. Chỉ xuất file `.cer` để nhập vào truststore của đầu còn lại.
+
+Tạo danh tính Client trên máy Client, sau đó chuyển file `client.cer` sang Server.
+
+```bash
+keytool -genkeypair -alias vpn-client -keyalg EC -groupname secp256r1 \
+  -dname "CN=VPN Client Duc" -ext EKU=clientAuth -validity 30 \
+  -storetype PKCS12 -keystore certs/client.p12
+keytool -exportcert -alias vpn-client -keystore certs/client.p12 \
+  -file certs/client.cer
+```
+
+Trên Server, nhập chứng chỉ Client đã xác nhận vào kho tin cậy.
+
+```bash
+keytool -importcert -alias vpn-client -file certs/client.cer \
+  -storetype PKCS12 -keystore certs/clients.p12
+```
+
+Với demo dòng lệnh, đặt cùng mật khẩu cho hai kho được dùng ở mỗi tiến trình. Thư viện Java cho phép truyền mật khẩu riêng cho từng kho qua `mutualContext`. Mỗi terminal đặt `VPN_STORE_PASSWORD` theo hướng dẫn ở trên.
+
+Chạy Server với tham số cuối là kho tin cậy dành cho Client.
+
+```bash
+java -cp build/classes vpn.demo.TunnelDemo server 127.0.0.1 8443 certs/server.p12 certs/clients.p12
+```
+
+Chạy Client với tham số cuối là kho khóa riêng của Client.
+
+```bash
+java -cp build/classes vpn.demo.TunnelDemo client 127.0.0.1 8443 certs/trusted.p12 certs/client.p12
+```
+
+Các ví dụ cùng máy yêu cầu chứng chỉ Server có SAN `ip:127.0.0.1`. Hai đầu dùng chứng chỉ hợp lệ sẽ in ba gói phản hồi như demo trước. Để thử từ chối Client, khởi động lại Server rồi chạy lệnh Client với bốn tham số để bỏ danh tính Client, hoặc đưa một keystore Client chưa được Server tin cậy vào tham số cuối. Demo báo lỗi và trả mã 1. Mỗi lần thử lại cần khởi động lại Server vì demo xử lý một phiên.
+
+Khi ghép TUN, tạo context cho mỗi đầu bằng cùng API sau.
+
+```java
+var context = TlsEndpoints.mutualContext(
+        keyStorePath, keyPassword, trustStorePath, trustPassword);
+```
+
+Server gọi `TlsEndpoints.listen(context, bindAddress, true)` để bắt buộc chứng chỉ Client. Client gọi `TlsEndpoints.connect(context, serverHost, port)` như trước. Việc cấu hình context và yêu cầu chứng chỉ Client là hai bước riêng, cần thực hiện cả hai ở Server.
+
+Bộ kiểm thử `bash scripts/smoke-test.sh` bổ sung `MutualTlsTest` với ba kết quả gồm từ chối Client thiếu chứng chỉ, từ chối Client có chứng chỉ ngoài kho tin cậy, và truyền gói thành công với Client được tin cậy sau hai lần bắt tay thất bại.
