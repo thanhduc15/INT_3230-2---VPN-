@@ -176,3 +176,7 @@ var context = TlsEndpoints.mutualContext(
 Server gọi `TlsEndpoints.listen(context, bindAddress, true)` để bắt buộc chứng chỉ Client. Client gọi `TlsEndpoints.connect(context, serverHost, port)` như trước. Việc cấu hình context và yêu cầu chứng chỉ Client là hai bước riêng, cần thực hiện cả hai ở Server.
 
 Bộ kiểm thử `bash scripts/smoke-test.sh` bổ sung `MutualTlsTest` với ba kết quả gồm từ chối Client thiếu chứng chỉ, từ chối Client có chứng chỉ ngoài kho tin cậy, và truyền gói thành công với Client được tin cậy sau hai lần bắt tay thất bại.
+
+## Demo ping và web nội bộ trên Ubuntu
+
+[Hướng dẫn chạy hai đầu VPN qua Linux TUN](docs/demo-tun-linux.md)
