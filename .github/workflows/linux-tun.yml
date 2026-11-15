@@ -1,0 +1,23 @@
+name: Linux TUN integration
+on:
+  push:
+    branches: ['24020078/vpn-core-framing']
+    paths:
+      - 'src/main/java/**'
+      - 'scripts/tun-io.py'
+      - 'scripts/create-demo-certs.sh'
+      - 'scripts/build.sh'
+      - 'scripts/test-linux-tun.sh'
+      - '.github/workflows/linux-tun.yml'
+permissions:
+  contents: read
+jobs:
+  ping-and-http:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Exercise mTLS tunnel between two network namespaces
+        run: sudo env PATH="$JAVA_HOME_17_X64/bin:$PATH" bash scripts/test-linux-tun.sh
