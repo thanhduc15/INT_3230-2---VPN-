@@ -2,6 +2,34 @@
 
 Phần phụ trách của **Mai Thành Đức**. Mô-đun thiết lập đường hầm TLS, kiểm tra danh tính máy chủ, phân khung gói IPv4 và chuyển gói hai chiều. Client và Server dùng chung mô-đun này. Mã dùng JDK 17 trở lên và chỉ cần thư viện chuẩn Java.
 
+## Bài thực hành 1 trên Windows — Theo dõi một gói trước khi mã hóa
+
+Mục tiêu là giải thích vì sao một gói IPv4 dài 28 byte chiếm 30 byte khi Java đóng khung. Bài này dùng bộ nhớ để có thể xem từng byte trước bước mã hóa TLS.
+
+1. Mở PowerShell trong thư mục gốc của repo. Chạy `javac -version` để kiểm tra máy đã có JDK 17 trở lên.
+2. Biên dịch lớp đóng khung và ví dụ minh họa.
+
+   ```powershell
+   New-Item -ItemType Directory -Force build/frame-lab | Out-Null
+   javac --release 17 -d build/frame-lab src/main/java/vpn/core/PacketFrames.java src/test/java/vpn/core/FrameWalkthrough.java
+   ```
+
+3. Chạy ví dụ.
+
+   ```powershell
+   java -cp build/frame-lab vpn.core.FrameWalkthrough
+   ```
+
+   Kết quả mong đợi
+
+   ```text
+   1. IPv4 packet: 28 bytes
+   2. VPN frame: [00 1c] + 28 packet bytes = 30 bytes
+   3. Receiver recovered all 28 original bytes
+   ```
+
+4. Mở [FrameWalkthrough.java](src/test/java/vpn/core/FrameWalkthrough.java) tại lệnh gọi `PacketFrames.write`, rồi theo sang [PacketFrames.java](src/main/java/vpn/core/PacketFrames.java). Lệnh `writeShort(packet.length)` ghi số 28 thành hai byte `00 1c` theo thứ tự byte cao trước. Lệnh `write(packet)` đặt gói IP ngay sau đó. Ở đầu nhận, `read` ghép hai byte đầu thành số 28 rồi `readFully` lấy đủ 28 byte. Quay lại ví dụ, `Arrays.equals` đối chiếu từng byte với gói ban đầu.
+
 ## Chạy demo mTLS bằng một lệnh
 
 Từ thư mục gốc, chạy `bash scripts/run-demo.sh` trên Linux hoặc Git Bash với JDK 17 trở lên. Script tạo chứng chỉ lab, biên dịch Java và kiểm tra hai phiên liên tiếp. Client hợp lệ nhận lại đủ ba gói, còn Client thiếu chứng chỉ bị từ chối. Mỗi lần chạy tạo một thư mục log riêng trong `build/`.
