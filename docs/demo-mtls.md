@@ -15,7 +15,7 @@ Script tạo chứng chỉ mới cho lần chạy, biên dịch dự án rồi m
 | 0:00–0:45 | Vẽ đường đi của một gói: Client → độ dài 2 byte + gói IPv4 → TLS 1.3 → Server. Hai byte đầu giúp Server đọc đúng số byte của một gói trong luồng TLS. |
 | 0:45–1:45 | Chỉ dòng `TLS TLSv1.3` và tên bộ mã. Ở phiên `trusted`, hai đầu dùng chứng chỉ riêng. Dòng `DONE packets=3` cho biết Server đã phản hồi ba gói. Mỗi dòng `PASS packet=` cho biết Client đã so sánh toàn bộ gói nhận về với gói gửi đi. |
 | 1:45–2:30 | Ở phiên `missing-cert`, Client vẫn tin đúng Server nhưng không gửi chứng chỉ của mình. Chỉ lỗi bắt tay trong log Server và giải thích vì sao không có dòng `ECHO` ở phiên này. Dòng `PASS demo: missing-cert` xác nhận script quan sát được kết quả từ chối mong đợi. |
-| 2:30–3:00 | Nêu phạm vi thử nghiệm: hai tiến trình trao đổi gói IPv4 mẫu. Để trình diễn ping hoặc web qua IP ảo, nhóm ghép `PacketDevice` với TUN trên Linux. |
+| 2:30–3:00 | Nêu phạm vi thử nghiệm: hai tiến trình trao đổi gói IPv4 mẫu. Chuyển sang [demo TUN trên Ubuntu](demo-tun-linux.md) để quan sát ping và web qua IP ảo. |
 
 **Khi trình bày lại:** mở `trusted-client.log` để xem bộ mã và thời gian khứ hồi, rồi đối chiếu `trusted-server.log` với `missing-cert-server.log`. Hai dòng `READY port=...` có thể hiện hai cổng khác nhau vì hệ điều hành cấp cổng cho từng phiên.
 

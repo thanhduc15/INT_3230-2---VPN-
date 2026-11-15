@@ -86,7 +86,7 @@ Chép `trusted.p12` sang Client qua kênh của nhóm sau khi xác nhận chứn
 
 ## Chạy demo đường hầm ở hai tiến trình
 
-Demo này tạo các gói IPv4 mẫu, gửi qua TLS và nhận lại nguyên gói do Server phản hồi. Kết quả cho biết đường hầm hoạt động và các byte được giữ nguyên. Demo ping và truy cập web qua IP ảo nằm ở bước ghép TUN trên Linux.
+Demo này tạo các gói IPv4 mẫu, gửi qua TLS và nhận lại nguyên gói do Server phản hồi. Kết quả cho biết đường hầm hoạt động và các byte được giữ nguyên. Để thử với gói do hệ điều hành tạo, chạy [demo ping và HTTP qua TUN trên Ubuntu](docs/demo-tun-linux.md).
 
 Chạy các lệnh từ thư mục gốc repo. Chuẩn bị JDK 17 trở lên, Bash và hai kho chứng chỉ theo mục tạo chứng chỉ ở trên. Với demo cùng máy, dùng SAN là `ip:127.0.0.1` khi tạo chứng chỉ. Khi chạy trên hai máy, SAN chứa IP mạng thật của Server và Client kết nối bằng IP đó.
 
