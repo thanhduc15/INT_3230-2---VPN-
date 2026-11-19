@@ -61,3 +61,13 @@ Dịch vụ nội bộ dùng lệnh dưới đây. Trang mẫu chứa mã riêng
 ip netns exec "$server" python3 -m http.server 8000   --bind 10.8.0.1 --directory "$run/www"
 ```
 
+## Thứ tự demo trực tiếp trong 4 phút
+
+| Thời gian | Thao tác | Lời dẫn |
+| --- | --- | --- |
+| 0:00–0:45 | Mở slide 12 | “Hai đầu chạy trên cùng Ubuntu với hai bảng định tuyến riêng. Đường hầm dùng IP wire0, còn dịch vụ nội bộ dùng IP vpn0.” |
+| 0:45–1:30 | Chạy lab và chỉ dòng route | “Đích 10.8.0.1 đi qua dev vpn0. Linux đưa gói cho helper và Java, Java chuyển qua mTLS.” |
+| 1:30–2:00 | Chỉ thống kê ping và PASS HTTP | “Ba gói ping có phản hồi. Script còn so nội dung HTTP với mã riêng của lần chạy.” |
+| 2:00–2:30 | Chỉ PASS sau ngắt | “Script dừng VPN Client, kiểm tra HTTP Server vẫn sống, rồi tải lại trang. Lần tải này thất bại.” |
+| 2:30–4:00 | Mở hai PCAP trong Wireshark | “Bản bắt vpn0 thấy gói IP và trang HTTP. Bản bắt wire0 thấy kết nối TLS tới 8443.” |
+
