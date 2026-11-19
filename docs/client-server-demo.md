@@ -71,3 +71,15 @@ ip netns exec "$server" python3 -m http.server 8000   --bind 10.8.0.1 --director
 | 2:00–2:30 | Chỉ PASS sau ngắt | “Script dừng VPN Client, kiểm tra HTTP Server vẫn sống, rồi tải lại trang. Lần tải này thất bại.” |
 | 2:30–4:00 | Mở hai PCAP trong Wireshark | “Bản bắt vpn0 thấy gói IP và trang HTTP. Bản bắt wire0 thấy kết nối TLS tới 8443.” |
 
+## Xem và lưu kết quả Wireshark
+
+Dòng đầu của lab in đường dẫn dạng build/tun.XXXXXX. Mở inner-ip.pcap và outer-tls.pcap trong thư mục đó. Nếu file do sudo tạo bị hạn chế quyền đọc, sao chép riêng hai PCAP sang thư mục người dùng rồi đổi chủ sở hữu các bản sao bằng chown.
+
+1. Mở inner-ip.pcap, nhập display filter `icmp`. Xem ba Echo Request và ba Echo Reply giữa 10.8.0.2 và 10.8.0.1.
+2. Đổi filter thành `tcp.port == 8000`. Chọn gói TCP, dùng Follow → TCP Stream để xem yêu cầu HTTP và phần trả lời chứa VPN-LAB-. Nếu cần giải mã giao thức, dùng Analyze → Decode As → HTTP cho cổng 8000.
+3. Mở outer-tls.pcap, dùng filter `tcp.port == 8443`. Nếu Wireshark chưa nhận diện TLS, dùng Analyze → Decode As → TLS cho cổng 8443.
+4. Xem Client Hello, Server Hello và các bản ghi TLS. Có thể thêm `&& tls.app_data` vào bộ lọc để xem dữ liệu được bảo vệ.
+5. Chụp màn hình danh sách ICMP, TCP Stream HTTP bên trong và danh sách TLS bên ngoài. Giữ tên PCAP và bộ lọc trong ảnh để người nghe biết đang quan sát lớp nào.
+
+Số bản ghi TLS có thể khác số gói IP vì TCP/TLS có ranh giới dữ liệu riêng. PCAP bên trong ghi nhận nội dung ở đầu cuối VPN. Việc tìm thấy nội dung rõ tại TUN là kết quả của việc quan sát gói trước hoặc sau lớp bảo vệ.
+
