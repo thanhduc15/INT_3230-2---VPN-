@@ -19,6 +19,7 @@ created=()
 pids=()
 cleanup() {
   for pid in "${pids[@]}"; do kill "$pid" 2>/dev/null || true; done
+  for pid in "${pids[@]}"; do wait "$pid" 2>/dev/null || true; done
   for ns in "${created[@]}"; do
     while read -r pid; do
       [[ -z $pid ]] || kill -KILL "$pid" 2>/dev/null || true
