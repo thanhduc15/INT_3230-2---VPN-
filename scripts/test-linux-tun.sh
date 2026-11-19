@@ -74,7 +74,9 @@ if [[ ${VPN_CAPTURE:-0} == 1 ]]; then
   ip netns exec "$server" tcpdump -U -n -i wire0 -w "$run/outer-tls.pcap" 'tcp port 8443' >"$run/capture-outer.log" 2>&1 &
   pids+=("$!")
   wait_log "$!" "$run/capture-outer.log" 'listening on'
-
+  ip netns exec "$server" tcpdump -U -n -i vpn0 -w "$run/inner-ip.pcap" 'icmp or tcp port 8000' >"$run/capture-inner.log" 2>&1 &
+  pids+=("$!")
+  wait_log "$!" "$run/capture-inner.log" 'listening on'
 fi
 ip netns exec "$client" "${cli[@]}" client 192.0.2.1 8443 vpn0 "$certs/client.p12" "$certs/trust-server.p12" >"$run/client.log" 2>&1 &
 client_pid=$!
