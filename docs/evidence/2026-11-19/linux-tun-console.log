@@ -1,0 +1,21 @@
+Lab logs: build/tun.7gHN9b
+Build complete: build/classes
+Generating 256 bit EC (secp256r1) key pair and self-signed certificate (SHA256withECDSA) with a validity of 7 days
+	for: CN=VPN Lab server
+Certificate stored in file <build/tun.7gHN9b/certs/server.cer>
+Generating 256 bit EC (secp256r1) key pair and self-signed certificate (SHA256withECDSA) with a validity of 7 days
+	for: CN=VPN Lab client
+Certificate stored in file <build/tun.7gHN9b/certs/client.cer>
+Certificate was added to keystore
+Certificate was added to keystore
+10.8.0.1 dev vpn0 src 10.8.0.2 uid 0 
+PING 10.8.0.1 (10.8.0.1) 56(84) bytes of data.
+64 bytes from 10.8.0.1: icmp_seq=1 ttl=64 time=0.992 ms
+64 bytes from 10.8.0.1: icmp_seq=2 ttl=64 time=1.29 ms
+64 bytes from 10.8.0.1: icmp_seq=3 ttl=64 time=1.32 ms
+
+--- 10.8.0.1 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2002ms
+rtt min/avg/max/mdev = 0.992/1.199/1.321/0.147 ms
+PASS: internal HTTP over the tunnel
+PASS: internal HTTP unreachable after VPN disconnect
