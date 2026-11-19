@@ -30,3 +30,31 @@ Script tạo chứng chỉ mới cho lần chạy, biên dịch dự án rồi m
 5. Dán lại biểu thức cho phiên `missing-cert`. Nếu cần, thực hiện Decode As cho cổng này. So sánh thời điểm kết nối kết thúc với lỗi `Empty client certificate chain` trong `missing-cert-server.log`. Log Server cho biết nguyên nhân từ chối; phần bắt tay sau Server Hello của TLS 1.3 đã được mã hóa.
 
 **Minh họa trên slide.** Dùng ảnh Server Hello ở phiên thành công kèm dòng log xác nhận ba gói, rồi dùng dòng lỗi từ phiên thiếu chứng chỉ. Ghi rõ đây là lưu lượng loopback của demo gói mẫu. Khi nhóm ghép TUN và chạy hai máy, chọn giao diện mạng nối hai máy để quan sát đường hầm bên ngoài.
+
+## Trình bày phần lõi của Mai Thành Đức
+
+Mở PowerShell tại thư mục repo và chạy lệnh Windows trong README. Trong lúc script tạo chứng chỉ, giới thiệu kiến trúc và vai trò từng lớp theo thứ tự dưới đây.
+
+| Phần | Lời dẫn | Mã tương ứng |
+| --- | --- | --- |
+| Nhận gói | “Trên Linux, hệ điều hành chuyển gói IPv4 vào giao diện vpn0. Helper mở TUN và chuyển gói cho Java qua pipe.” | `LinuxTunDevice` và `scripts/tun-io.py` |
+| Đóng khung | “Java ghi độ dài bằng hai byte trước mỗi gói. Đầu nhận đọc đủ số byte được khai báo và kiểm tra header IPv4.” | `PacketFrames.write/read` |
+| Bảo mật | “Hai đầu dùng TLS 1.3 và ALPN java-vpn/1. Với mTLS, mỗi đầu có chứng chỉ riêng và kiểm tra bên kia qua truststore.” | `TlsEndpoints` |
+| Chuyển tiếp | “Hai luồng chạy đồng thời để chuyển gói theo cả hai chiều. Khi một chiều kết thúc, bridge đóng tài nguyên của phiên.” | `TunnelBridge.run` |
+
+Khi script kết thúc, chỉ ba dòng `PASS packet=` ở phiên trusted, rồi chuyển sang lỗi bắt tay trong log Server ở phiên missing-cert. Đây là hai tiến trình Java trao đổi gói IPv4 mẫu qua loopback. Với demo TUN, mở hướng dẫn Ubuntu và chỉ kết quả route, ping, HTTP theo thứ tự đã ghi ở đó.
+
+## Câu hỏi tự luyện trước buổi bảo vệ
+
+Các câu dưới đây dùng để luyện giải thích code của dự án.
+
+| Câu hỏi | Nội dung trả lời |
+| --- | --- |
+| Vì sao cần hai byte độ dài? | TCP/TLS cung cấp luồng byte. Một lần đọc có thể nhận một phần gói. Tiền tố độ dài giúp xác định ranh giới, còn `readFully` đọc đủ phần gói. |
+| Chứng chỉ có đủ để chứng minh danh tính không? | Trong bắt tay, bên trình chứng chỉ còn phải chứng minh sở hữu khóa riêng tương ứng. Truststore xác định chứng chỉ nào được tin cậy. |
+| Vì sao phiên missing-cert có dòng PASS? | PASS ghi nhận Server đã từ chối Client thiếu chứng chỉ như dự kiến. Đọc nguyên nhân tại log Server. |
+| Nhóm triển khai phần nào của TLS? | Dự án gọi JSSE của Java để bắt tay và bảo vệ dữ liệu. Phần code của nhóm thực hiện cấu hình TLS, nạp kho khóa, đóng khung, kiểm tra và chuyển tiếp gói. |
+| Vì sao MTU là 1400? | Đây là giới hạn gói IP mà hai đầu cùng chấp nhận trong lab. Gói vượt giới hạn bị từ chối. Giá trị này cần cấu hình thống nhất với TUN và có thể điều chỉnh theo yêu cầu triển khai. |
+| Gói sai có được chuyển tiếp không? | Lớp đóng khung kiểm tra độ dài, version IPv4, IHL và Total Length. Lỗi làm kết thúc phiên qua bridge. |
+| Demo chứng minh điều gì? | Demo mTLS kiểm tra xác thực và bảo toàn byte của gói mẫu. Demo Ubuntu kiểm tra gói do hệ điều hành tạo, truy cập đúng trang nội bộ và mất truy cập khi ngắt VPN. |
+| Phạm vi hỗ trợ hiện tại là gì? | Lab điểm-điểm IPv4, hai namespace trên một máy Ubuntu. Java xử lý đường hầm, helper Python truy cập thiết bị TUN. Demo web dùng địa chỉ nội bộ của Server. |
