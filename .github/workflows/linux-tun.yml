@@ -20,5 +20,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Prepare packet capture
+        run: |
+          if ! command -v tcpdump >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y tcpdump
+          fi
       - name: Exercise mTLS tunnel between two network namespaces
-        run: sudo env PATH="$JAVA_HOME_17_X64/bin:$PATH" bash scripts/test-linux-tun.sh
+        shell: bash
+        run: |
+          mkdir -p build
+          set -o pipefail
+          sudo env VPN_CAPTURE=1 PATH="$JAVA_HOME_17_X64/bin:$PATH" bash scripts/test-linux-tun.sh 2>&1 | tee build/linux-tun-console.log
