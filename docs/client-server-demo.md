@@ -107,3 +107,12 @@ Workflow lưu artifact vpn-demo-evidence trong 14 ngày. Thư mục evidence gi�
 
 Khi script chủ động ngắt Client, log Server có thể kết thúc bằng SocketException/Connection reset. Đối chiếu thời điểm ngắt và dòng PASS sau đó để giải thích kết quả.
 
+## Tổng duyệt và phạm vi
+
+- Mở bộ 15 slide và giữ terminal, Wireshark ở cửa sổ riêng.
+- Thử trước lệnh Windows cho tình huống chứng chỉ và lệnh Ubuntu cho TUN.
+- Nếu trình chiếu từ Windows chưa có Ubuntu, dùng PCAP và log đã lưu để giải thích kết quả thực nghiệm. Ghi rõ thời điểm và môi trường chạy.
+- Nếu cần video dự phòng, quay màn hình một lần chạy trên Ubuntu cùng lúc giải thích route, ping và HTTP. PCAP/log đã lưu có thể dùng để quay phần phân tích Wireshark.
+- Điền tên thành viên theo yêu cầu nhóm khi chốt slide bìa. Bản hiện tại chỉ ghi Mai Thành Đức theo thông tin đã có.
+
+Phạm vi đã kiểm chứng là IPv4, một phiên điểm-điểm, hai namespace trên cùng Ubuntu và dịch vụ nằm ngay tại đầu Server. Java xử lý lõi đường hầm, Python hỗ trợ TUN và HTTP mẫu. Khả năng nhiều Client, IPv6, định tuyến tới LAN phía sau Server, NAT Internet và tự kết nối lại cần được phát triển riêng.
