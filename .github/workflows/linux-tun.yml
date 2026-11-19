@@ -1,7 +1,8 @@
 name: Linux TUN integration
 on:
+  workflow_dispatch:
   push:
-    branches: ['24020078/vpn-core-framing']
+    branches: ['main', '24020078/vpn-core-framing']
     paths:
       - 'src/main/java/**'
       - 'scripts/tun-io.py'
