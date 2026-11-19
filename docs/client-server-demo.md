@@ -45,3 +45,19 @@ ip netns exec "$client" java -cp build/classes vpn.demo.TunVpn   client 192.0.2.
 
 Trong TunVpn, mutualContext nạp danh tính và kho tin cậy. LinuxTunDevice khởi động helper Python để mở TUN. TlsEndpoints.connect kiểm tra chứng chỉ Server khớp địa chỉ 192.0.2.1. TunnelBridge bắt đầu hai chiều truyền. Gói nhận về được ghi vào TUN để Linux chuyển tới ứng dụng Client.
 
+## Phía Server
+
+Script đặt vpn0 của Server là 10.8.0.1/30. Lệnh Server bên trong namespace có dạng sau.
+
+```bash
+ip netns exec "$server" java -cp build/classes vpn.demo.TunVpn   server 192.0.2.1 8443 vpn0 "$certs/server.p12" "$certs/trust-client.p12"
+```
+
+Server in READY khi đã mở listener, rồi chờ một Client. Tham số true của TlsEndpoints.listen yêu cầu chứng chỉ Client. Chỉ sau bắt tay thành công, TunnelBridge mới chuyển gói qua TLS và TUN. Chương trình hiện phục vụ một phiên điểm-điểm.
+
+Dịch vụ nội bộ dùng lệnh dưới đây. Trang mẫu chứa mã riêng cho từng lần chạy, để script đối chiếu đúng nội dung nhận về.
+
+```bash
+ip netns exec "$server" python3 -m http.server 8000   --bind 10.8.0.1 --directory "$run/www"
+```
+
