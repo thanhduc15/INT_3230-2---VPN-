@@ -2,6 +2,12 @@
 
 Phần phụ trách của **Mai Thành Đức**. Mô-đun thiết lập đường hầm TLS, kiểm tra danh tính máy chủ, phân khung gói IPv4 và chuyển gói hai chiều. Client và Server dùng chung mô-đun này. Mã dùng JDK 17 trở lên và chỉ cần thư viện chuẩn Java.
 
+## Bài trình bày và demo chung
+
+[Bộ 15 slide](docs/slides/VPN-Nhom-Hoan-Chinh.pptx) bổ sung nguyên lý VPN, TUN, Client, Server, kiểm thử và phạm vi thực nghiệm. [Hướng dẫn Client/Server và kịch bản 4 phút](docs/client-server-demo.md) đối chiếu mã nguồn với phân công. [PCAP và log đã kiểm chứng](docs/evidence/2026-11-19/) dùng để phân tích trong Wireshark.
+
+Trên Ubuntu, bật ghi PCAP bằng `sudo env VPN_CAPTURE=1 PATH="$PATH" bash scripts/test-linux-tun.sh`. Khi đó máy cần thêm tcpdump. Workflow Linux TUN integration tự lưu bản bắt lớp trong, lớp ngoài và log thành artifact vpn-demo-evidence.
+
 ## Bài thực hành 1 trên Windows — Theo dõi một gói trước khi mã hóa
 
 Mục tiêu là giải thích vì sao một gói IPv4 dài 28 byte chiếm 30 byte khi Java đóng khung. Bài này dùng bộ nhớ để có thể xem từng byte trước bước mã hóa TLS.
