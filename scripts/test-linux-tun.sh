@@ -7,6 +7,7 @@ if [[ $(uname -s) != Linux || $EUID != 0 ]]; then
   exit 2
 fi
 for tool in ip ping curl python3 java javac keytool; do command -v "$tool" >/dev/null; done
+if [[ ${VPN_CAPTURE:-0} == 1 ]]; then command -v tcpdump >/dev/null; fi
 [[ -c /dev/net/tun ]] || { echo 'Missing /dev/net/tun' >&2; exit 2; }
 umask 077
 mkdir -p build
@@ -68,6 +69,13 @@ wait_log() {
   return 1
 }
 wait_log "$!" "$run/server.log" '^READY'
+# Capture the encrypted transport and the corresponding inner packets for Wireshark.
+if [[ ${VPN_CAPTURE:-0} == 1 ]]; then
+  ip netns exec "$server" tcpdump -U -n -i wire0 -w "$run/outer-tls.pcap" 'tcp port 8443' >"$run/capture-outer.log" 2>&1 &
+  pids+=("$!")
+  wait_log "$!" "$run/capture-outer.log" 'listening on'
+
+fi
 ip netns exec "$client" "${cli[@]}" client 192.0.2.1 8443 vpn0 "$certs/client.p12" "$certs/trust-server.p12" >"$run/client.log" 2>&1 &
 client_pid=$!
 pids+=("$client_pid")
