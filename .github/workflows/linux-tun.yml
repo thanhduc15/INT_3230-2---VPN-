@@ -32,3 +32,16 @@ jobs:
           mkdir -p build
           set -o pipefail
           sudo env VPN_CAPTURE=1 PATH="$JAVA_HOME_17_X64/bin:$PATH" bash scripts/test-linux-tun.sh 2>&1 | tee build/linux-tun-console.log
+      - name: Make demo evidence readable
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" build
+      - name: Save logs and Wireshark captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpn-demo-evidence
+          retention-days: 14
+          path: |
+            build/linux-tun-console.log
+            build/tun.*/*.log
+            build/tun.*/*.pcap
