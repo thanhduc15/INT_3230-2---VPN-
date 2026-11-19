@@ -1,0 +1,4 @@
+/build/
+/certs/
+*.p12
+*.key
