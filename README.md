@@ -34,6 +34,14 @@ Mục tiêu là giải thích vì sao một gói IPv4 dài 28 byte chiếm 30 by
 
 Từ thư mục gốc, chạy `bash scripts/run-demo.sh` trên Linux hoặc Git Bash với JDK 17 trở lên. Script tạo chứng chỉ lab, biên dịch Java và kiểm tra hai phiên liên tiếp. Client hợp lệ nhận lại đủ ba gói, còn Client thiếu chứng chỉ bị từ chối. Mỗi lần chạy tạo một thư mục log riêng trong `build/`.
 
+Trên Windows, mở PowerShell trong thư mục repo và chạy lệnh sau. Máy cần Git for Windows và JDK 17 trở lên.
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run-demo.ps1
+```
+
+Launcher chọn JDK từ `JAVA_HOME`, hoặc từ Java trên PATH khi `JAVA_HOME` trống, rồi thêm thư mục công cụ của JDK vào PATH cho phiên demo. Có thể chỉ định `-JdkHome "C:\Program Files\Java\jdk-24"` và `-BashPath "C:\Program Files\Git\bin\bash.exe"` nếu máy cài ở vị trí khác.
+
 [Kịch bản trình diễn và cách đọc log](docs/demo-mtls.md)
 
 ## Kiểm thử lõi
